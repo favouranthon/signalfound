@@ -1,0 +1,252 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  .terminal{background:#0a0f0a;width:100%;min-height:520px;position:relative;overflow:hidden;font-family:'Share Tech Mono',monospace;border:1px solid #1a3a1a;}
+  .scanline{position:absolute;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,70,0.015) 2px,rgba(0,255,70,0.015) 4px);pointer-events:none;z-index:50;}
+  .hud{position:absolute;top:10px;left:10px;z-index:20;border:1px solid #1f5a1f;padding:6px 10px;background:rgba(0,20,0,0.85);min-width:180px;}
+  .hud-line{font-size:11px;color:#39ff5a;line-height:1.7;letter-spacing:0.05em;}
+  .hud-label{color:#1a8a1a;}
+  .crosshair{position:absolute;color:#39ff5a;font-size:16px;opacity:0.7;user-select:none;}
+  .crosshair-tl{top:8px;right:12px;}
+  .crosshair-br{bottom:55px;right:12px;}
+  .main-area{display:flex;align-items:center;justify-content:center;flex-direction:column;padding:10px 20px 10px;position:relative;min-height:420px;}
+  .globe-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-52%);z-index:1;opacity:0.55;}
+  .title-wrap{position:relative;z-index:10;text-align:center;cursor:pointer;padding:20px 0 10px;}
+  .title-text{font-family:'VT323',monospace;font-size:clamp(48px,10vw,92px);color:#39ff5a;letter-spacing:0.12em;line-height:1;text-shadow:0 0 8px rgba(57,255,90,0.4);transition:color 0.4s;display:block;position:relative;}
+  .btns{display:flex;gap:10px;justify-content:center;z-index:10;position:relative;flex-wrap:wrap;padding:0 10px 0;}
+  .btn{background:transparent;border:1px solid #1f5a1f;color:#39ff5a;font-family:'Share Tech Mono',monospace;font-size:11px;padding:6px 14px;cursor:pointer;letter-spacing:0.08em;transition:all 0.2s;text-transform:uppercase;}
+  .btn:hover{background:rgba(57,255,90,0.12);border-color:#39ff5a;}
+  .btn.active{background:rgba(57,255,90,0.18);border-color:#39ff5a;}
+  .color-bar{display:flex;gap:6px;justify-content:center;z-index:10;position:relative;padding:8px 0 0;}
+  .color-dot{width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform 0.15s;}
+  .color-dot:hover{transform:scale(1.25);}
+  .color-dot.selected{border-color:#fff;}
+  .bottom-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(0,15,0,0.9);border-top:1px solid #1f5a1f;padding:7px 12px;display:flex;gap:8px;align-items:center;z-index:30;}
+  .bottom-bar input{flex:1;background:transparent;border:none;border-bottom:1px solid #1f5a1f;color:#39ff5a;font-family:'Share Tech Mono',monospace;font-size:12px;padding:3px 4px;outline:none;}
+  .bottom-bar input::placeholder{color:#1f5a1f;}
+  .bottom-bar button{background:transparent;border:1px solid #1f5a1f;color:#39ff5a;font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 10px;cursor:pointer;text-transform:uppercase;}
+  .bottom-bar button:hover{background:rgba(57,255,90,0.12);}
+  canvas.fx{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;}
+  canvas.sonar-c{position:absolute;top:50%;left:50%;transform:translate(-50%,-54%);pointer-events:none;z-index:8;}
+  .export-btn{position:absolute;top:10px;right:10px;z-index:40;background:transparent;border:1px solid #1f5a1f;color:#39ff5a;font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 10px;cursor:pointer;letter-spacing:0.06em;}
+  .export-btn:hover{background:rgba(57,255,90,0.1);}
+  .label-sm{font-size:10px;color:#1a8a1a;letter-spacing:0.06em;text-align:center;padding-top:2px;}
+</style>
+
+<div class="terminal" id="term">
+  <div class="scanline"></div>
+  <canvas class="fx" id="fxCanvas"></canvas>
+  <canvas class="sonar-c" id="sonarCanvas" width="340" height="340" style="display:none;"></canvas>
+
+  <div class="hud">
+    <div class="hud-line"><span class="hud-label">TIME › </span><span id="hud-time">--:--:--</span></div>
+    <div class="hud-line"><span class="hud-label">SIG  › </span><span id="hud-sig">▓▓▓▓░</span></div>
+    <div class="hud-line"><span class="hud-label">NODE › </span><span id="hud-node">NODE-00</span></div>
+    <div class="hud-line"><span class="hud-label">STAT › </span><span id="hud-stat">ONLINE</span></div>
+  </div>
+
+  <button class="export-btn" id="exportBtn">⬇ EXPORT</button>
+
+  <div class="main-area" id="mainArea">
+    <div class="globe-wrap">
+      <svg width="260" height="260" viewBox="0 0 260 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="gclip"><circle cx="130" cy="130" r="118"/></clipPath>
+        </defs>
+        <g clip-path="url(#gclip)" stroke="#39ff5a" stroke-width="0.8" opacity="0.7">
+          <circle cx="130" cy="130" r="118"/>
+          <ellipse cx="130" cy="130" rx="40" ry="118"/>
+          <ellipse cx="130" cy="130" rx="80" ry="118"/>
+          <ellipse cx="130" cy="130" rx="110" ry="118"/>
+          <line x1="12" y1="80" x2="248" y2="80"/>
+          <line x1="12" y1="100" x2="248" y2="100"/>
+          <line x1="12" y1="120" x2="248" y2="120"/>
+          <line x1="12" y1="130" x2="248" y2="130"/>
+          <line x1="12" y1="140" x2="248" y2="140"/>
+          <line x1="12" y1="160" x2="248" y2="160"/>
+          <line x1="12" y1="180" x2="248" y2="180"/>
+        </g>
+        <circle cx="130" cy="130" r="118" stroke="#39ff5a" stroke-width="1" fill="none" opacity="0.9"/>
+      </svg>
+    </div>
+
+    <div class="title-wrap">
+      <span class="title-text" id="titleText">PATTERN<br>RETRIEVAL</span>
+    </div>
+
+    <div class="btns" style="margin-top:8px;">
+      <button class="btn" id="btnBinary">⬛ BINARY RAIN</button>
+      <button class="btn" id="btnSonar">◎ SONAR PING</button>
+      <button class="btn" id="btnHeart">♥ HEARTBEAT</button>
+    </div>
+
+    <div class="label-sm">— COLOR MODE —</div>
+    <div class="color-bar">
+      <div class="color-dot selected" data-col="#39ff5a" style="background:#39ff5a;" title="Matrix Green"></div>
+      <div class="color-dot" data-col="#00eaff" style="background:#00eaff;" title="Cyan"></div>
+      <div class="color-dot" data-col="#ff4af0" style="background:#ff4af0;" title="Magenta"></div>
+      <div class="color-dot" data-col="#ffcc00" style="background:#ffcc00;" title="Amber"></div>
+      <div class="color-dot" data-col="#ff4040" style="background:#ff4040;" title="Red Alert"></div>
+      <div class="color-dot" data-col="#ffffff" style="background:#fff;border:1px solid #555;" title="White"></div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <span style="color:#1a8a1a;font-size:11px;">&gt;&gt;</span>
+    <input type="text" id="titleInput" maxlength="24" placeholder="Enter new title..."/>
+    <button onclick="applyTitle()">SET</button>
+    <button onclick="resetTitle()">RESET</button>
+  </div>
+</div>
+
+<script>
+(function(){
+const title = document.getElementById('titleText');
+const fxCv = document.getElementById('fxCanvas');
+const fxCtx = fxCv.getContext('2d');
+const sonarCv = document.getElementById('sonarCanvas');
+const sonarCtx = sonarCv.getContext('2d');
+const term = document.getElementById('term');
+let activeColor = '#39ff5a';
+let binaryRaf, sonarRaf, heartRaf;
+let binaryActive=false, sonarActive=false, heartActive=false;
+const nodes = ['NODE-04','NODE-11','NODE-07','NODE-22','NODE-99','NODE-13'];
+let nodeIdx=0;
+const sigs = ['▓▓▓▓▓','▓▓▓▓░','▓▓▓░░','▓▓░░░','▓░░░░'];
+let sigIdx=0;
+
+function resizeFx(){fxCv.width=term.offsetWidth;fxCv.height=term.offsetHeight;}
+resizeFx();window.addEventListener('resize',resizeFx);
+
+function setColor(c){
+  activeColor=c;
+  title.style.color=c;
+  title.style.textShadow=`0 0 8px ${c}66`;
+  document.querySelectorAll('.color-dot').forEach(d=>{d.classList.toggle('selected',d.dataset.col===c);});
+}
+document.querySelectorAll('.color-dot').forEach(d=>d.addEventListener('click',()=>setColor(d.dataset.col)));
+
+function updateHUD(){
+  const now=new Date();
+  const t=now.toTimeString().slice(0,8);
+  document.getElementById('hud-time').textContent=t;
+  sigIdx=(sigIdx+1)%sigs.length;
+  document.getElementById('hud-sig').textContent=sigs[sigIdx];
+  if(Math.random()<0.15){nodeIdx=(nodeIdx+1)%nodes.length;document.getElementById('hud-node').textContent=nodes[nodeIdx];}
+  const stats=['ONLINE','SCANNING','LOCKED','SIGNAL','ACTIVE'];
+  if(Math.random()<0.1)document.getElementById('hud-stat').textContent=stats[Math.floor(Math.random()*stats.length)];
+}
+setInterval(updateHUD,1000);updateHUD();
+
+let binaryChars=[];
+function initBinary(){
+  binaryChars=[];
+  const cols=Math.floor(fxCv.width/14);
+  for(let i=0;i<cols;i++){binaryChars.push({x:i*14,y:Math.random()*fxCv.height,speed:2+Math.random()*4,trail:[]});}
+}
+function drawBinary(){
+  fxCtx.fillStyle='rgba(10,15,10,0.12)';
+  fxCtx.fillRect(0,0,fxCv.width,fxCv.height);
+  fxCtx.font='13px "Share Tech Mono",monospace';
+  binaryChars.forEach(col=>{
+    col.trail.push(col.y);if(col.trail.length>18)col.trail.shift();
+    col.trail.forEach((y,i)=>{
+      const a=i/col.trail.length;
+      fxCtx.fillStyle=i===col.trail.length-1?activeColor:`rgba(${hexToRgb(activeColor)},${a*0.6})`;
+      fxCtx.fillText(Math.random()<0.5?'1':'0',col.x,y);
+    });
+    col.y+=col.speed;if(col.y>fxCv.height+100){col.y=-20;col.trail=[];}
+  });
+  binaryRaf=requestAnimationFrame(drawBinary);
+}
+function stopBinary(){cancelAnimationFrame(binaryRaf);fxCtx.clearRect(0,0,fxCv.width,fxCv.height);}
+
+let sonarRings=[];
+function drawSonar(){
+  sonarCtx.clearRect(0,0,340,340);
+  const cx=170,cy=170,c=activeColor,r=hexToRgb(activeColor);
+  if(Math.random()<0.03)sonarRings.push({r:0,a:1});
+  sonarRings=sonarRings.filter(ring=>ring.a>0.01);
+  sonarRings.forEach(ring=>{
+    sonarCtx.beginPath();sonarCtx.arc(cx,cy,ring.r,0,Math.PI*2);
+    sonarCtx.strokeStyle=`rgba(${r},${ring.a})`;sonarCtx.lineWidth=2;sonarCtx.stroke();
+    ring.r+=1.8;ring.a*=0.97;
+  });
+  for(let ri=40;ri<=170;ri+=40){
+    sonarCtx.beginPath();sonarCtx.arc(cx,cy,ri,0,Math.PI*2);
+    sonarCtx.strokeStyle=`rgba(${r},0.15)`;sonarCtx.lineWidth=0.8;sonarCtx.stroke();
+  }
+  sonarCtx.strokeStyle=`rgba(${r},0.15)`;sonarCtx.lineWidth=0.8;
+  [[cx,0,cx,340],[0,cy,340,cy]].forEach(([x1,y1,x2,y2])=>{sonarCtx.beginPath();sonarCtx.moveTo(x1,y1);sonarCtx.lineTo(x2,y2);sonarCtx.stroke();});
+  sonarRaf=requestAnimationFrame(drawSonar);
+}
+function stopSonar(){cancelAnimationFrame(sonarRaf);sonarCtx.clearRect(0,0,340,340);sonarCv.style.display='none';}
+
+let heartPhase=0,heartActive2=false;
+function doHeartbeat(){
+  heartPhase+=0.07;
+  const s=1+0.12*Math.max(0,Math.sin(heartPhase))*Math.max(0,Math.sin(heartPhase*3));
+  title.style.transform=`scale(${s})`;
+  heartRaf=requestAnimationFrame(doHeartbeat);
+}
+function stopHeart(){cancelAnimationFrame(heartRaf);title.style.transform='scale(1)';}
+
+function hexToRgb(hex){
+  hex=hex.replace('#','');
+  if(hex.length===3)hex=hex.split('').map(x=>x+x).join('');
+  const n=parseInt(hex,16);
+  return `${(n>>16)&255},${(n>>8)&255},${n&255}`;
+}
+
+document.getElementById('btnBinary').addEventListener('click',()=>{
+  binaryActive=!binaryActive;
+  document.getElementById('btnBinary').classList.toggle('active',binaryActive);
+  if(binaryActive){initBinary();drawBinary();}else{stopBinary();}
+});
+document.getElementById('btnSonar').addEventListener('click',()=>{
+  sonarActive=!sonarActive;
+  document.getElementById('btnSonar').classList.toggle('active',sonarActive);
+  if(sonarActive){sonarRings=[];sonarCv.style.display='block';drawSonar();}else{stopSonar();}
+});
+document.getElementById('btnHeart').addEventListener('click',()=>{
+  heartActive=!heartActive;
+  document.getElementById('btnHeart').classList.toggle('active',heartActive);
+  if(heartActive){doHeartbeat();}else{stopHeart();}
+});
+
+window.applyTitle=function(){
+  const v=document.getElementById('titleInput').value.trim();
+  if(!v)return;
+  const words=v.toUpperCase().split(' ');
+  if(words.length>=2){
+    const mid=Math.ceil(words.length/2);
+    title.innerHTML=words.slice(0,mid).join(' ')+'<br>'+words.slice(mid).join(' ');
+  }else{title.textContent=v.toUpperCase();}
+};
+window.resetTitle=function(){
+  title.innerHTML='PATTERN<br>RETRIEVAL';
+  document.getElementById('titleInput').value='';
+};
+document.getElementById('titleInput').addEventListener('keydown',e=>{if(e.key==='Enter')applyTitle();});
+
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  const html=`<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Pattern Retrieval Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+${document.querySelector('style').innerHTML}
+.terminal{max-width:900px;width:100%;}
+</style></head>
+<body>${document.getElementById('term').outerHTML}
+<script>
+${document.querySelector('script').innerHTML}
+<\/script>
+</body></html>`;
+  const blob=new Blob([html],{type:'text/html'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pattern-retrieval-terminal.html';a.click();
+});
+})();
+</script>
